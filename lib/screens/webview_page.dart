@@ -149,18 +149,38 @@ class _WebViewPageState extends State<WebViewPage> {
         
         // Listen for any clicks in the sidebar/menu area
         document.addEventListener('click', function(e) {
+          const clickedElement = e.target;
+          
+          // Check if this is a dropdown/expand button (has arrow icons or expand-specific classes)
+          const isDropdownButton = clickedElement.closest(
+            'button[aria-expanded], [class*="expand"], [class*="collapse"], svg, i.icon-chevron, i.icon-arrow, [class*="toggle"]'
+          ) || 
+          clickedElement.textContent?.includes('>') ||
+          clickedElement.textContent?.includes('v') ||
+          clickedElement.textContent?.includes('∨') ||
+          clickedElement.innerHTML?.includes('svg');
+          
+          // If it's a dropdown button, don't hide the menu (let it expand/collapse)
+          if (isDropdownButton) {
+            console.log('Dropdown button clicked - menu will expand/collapse');
+            return;
+          }
+          
           // Check if click is inside a menu structure (links, buttons, list items, divs with menu roles)
           const isMenuClick = e.target.closest(
-            'a[href], button, li, [role="menuitem"], [role="button"], [class*="menu"], [class*="item"]'
+            'a[href], li, [role="menuitem"], [class*="menu-item"], [class*="item"]'
           );
           
           if (isMenuClick) {
             // Check if this element or its parent is within the sidebar
             const sidebar = e.target.closest('aside, nav[class*="sidebar"], div[class*="sidebar"], [class*="drawer"]');
             if (sidebar) {
-              hideMenuAndOverlay();
-              // Notify Flutter that menu was clicked
-              MenuHandler.postMessage('menu_clicked');
+              // Add a small delay to allow menu navigation to process
+              setTimeout(() => {
+                hideMenuAndOverlay();
+                // Notify Flutter that menu was clicked
+                MenuHandler.postMessage('menu_clicked');
+              }, 100);
             }
           }
         }, true);
