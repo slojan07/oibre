@@ -101,26 +101,82 @@ class _WebViewPageState extends State<WebViewPage> {
     if (controller == null) return;
     
     try {
-      // Setup click handler that hides sidebar when any menu item is clicked
+      // Setup comprehensive click handler that hides sidebar immediately on any menu interaction
       await controller!.runJavaScript('''
-        const sidebar = document.querySelector('aside');
-        if (sidebar) {
-          // Add click listener to sidebar
-          sidebar.addEventListener('click', function(e) {
-            setTimeout(() => {
-              // Apply CSS to hide sidebar and overlays
-              const style = document.createElement('style');
-              style.textContent = `
-                aside { display: none !important; visibility: hidden !important; }
-                div[class*="backdrop"] { display: none !important; }
-                div[class*="overlay"] { display: none !important; }
-                div[class*="modal"] { display: none !important; }
-              `;
-              document.head.appendChild(style);
-              console.log('CSS hiding applied');
-            }, 100);
-          }, true);
+        function hideMenuAndOverlay() {
+          // Immediately hide all sidebar and overlay elements
+          const style = document.createElement('style');
+          style.id = 'menu-hide-style-' + Date.now();
+          style.textContent = `
+            aside, 
+            nav[class*="sidebar"], 
+            div[class*="sidebar"], 
+            [class*="drawer"],
+            [class*="menu"] { 
+              display: none !important; 
+              visibility: hidden !important; 
+              opacity: 0 !important;
+              pointer-events: none !important;
+            }
+            div[class*="backdrop"] { 
+              display: none !important; 
+              visibility: hidden !important; 
+              opacity: 0 !important;
+            }
+            div[class*="overlay"] { 
+              display: none !important; 
+              visibility: hidden !important; 
+              opacity: 0 !important;
+            }
+            div[role="dialog"] { 
+              display: none !important; 
+              visibility: hidden !important; 
+              opacity: 0 !important;
+            }
+            body { overflow: visible !important; }
+            main { width: 100% !important; }
+          `;
+          document.head.appendChild(style);
+          console.log('Sidebar and overlays hidden');
         }
+        
+        // Listen for any clicks in the sidebar/menu area
+        document.addEventListener('click', function(e) {
+          // Check if click is inside a menu structure (links, buttons, list items, divs with menu roles)
+          const isMenuClick = e.target.closest(
+            'a[href], button, li, [role="menuitem"], [role="button"], [class*="menu"], [class*="item"]'
+          );
+          
+          if (isMenuClick) {
+            // Check if this element or its parent is within the sidebar
+            const sidebar = e.target.closest('aside, nav[class*="sidebar"], div[class*="sidebar"], [class*="drawer"]');
+            if (sidebar) {
+              hideMenuAndOverlay();
+            }
+          }
+        }, true);
+        
+        // Also watch for navigation changes
+        const observer = new MutationObserver(function(mutations) {
+          // If page structure is changing significantly, ensure menu is hidden
+          if (document.querySelector('aside:not([style*="display: none"])')) {
+            // Menu is still visible, might need to hide it
+            const urlChanged = window.lastUrl !== window.location.href;
+            if (urlChanged) {
+              hideMenuAndOverlay();
+              window.lastUrl = window.location.href;
+            }
+          }
+        });
+        
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: false,
+          characterData: false
+        });
+        
+        window.lastUrl = window.location.href;
       ''').catchError((error) {
         print('Error setting up menu listeners: \$error');
       });
