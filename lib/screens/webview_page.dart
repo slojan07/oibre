@@ -31,6 +31,14 @@ class _WebViewPageState extends State<WebViewPage> {
     if (!kIsWeb && !isTest) {
       controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..addJavaScriptChannel('MenuHandler',
+          onMessageReceived: (JavaScriptMessage message) {
+            // Reset sidebar visibility when menu item is clicked
+            setState(() {
+              isSidebarVisible = false;
+            });
+          },
+        )
         ..setNavigationDelegate(
           NavigationDelegate(
             onPageStarted: (String url) {
@@ -42,10 +50,9 @@ class _WebViewPageState extends State<WebViewPage> {
             onPageFinished: (String url) {
               // Update navigation state immediately
               _updateNavigationState();
-              // Hide the sidebar only on first load
-              if (isFirstLoad) {
+              // Hide the sidebar only if it should be hidden (when not explicitly toggled on)
+              if (!isSidebarVisible) {
                 _hideSidebarWithCSS();
-                isFirstLoad = false;
               }
               // Setup menu item click listeners
               _setupMenuItemListeners();
@@ -152,6 +159,8 @@ class _WebViewPageState extends State<WebViewPage> {
             const sidebar = e.target.closest('aside, nav[class*="sidebar"], div[class*="sidebar"], [class*="drawer"]');
             if (sidebar) {
               hideMenuAndOverlay();
+              // Notify Flutter that menu was clicked
+              MenuHandler.postMessage('menu_clicked');
             }
           }
         }, true);
